@@ -1,56 +1,65 @@
 package it.epicode.w6d2esercizio.controller;
 
+import com.cloudinary.Cloudinary;
+import it.epicode.w6d2esercizio.exception.NotFoundException;
 import it.epicode.w6d2esercizio.model.Autore;
+import it.epicode.w6d2esercizio.model.AutoreRequest;
+import it.epicode.w6d2esercizio.model.CustomResponse;
+import it.epicode.w6d2esercizio.repository.AutoreRepository;
 import it.epicode.w6d2esercizio.service.AutoreService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.io.IOException;
+import java.util.HashMap;
 
 @RestController
 public class AutoreController {
     @Autowired
     private AutoreService autoreService;
-
+    private Cloudinary cloudinary;
+    @Autowired
+    private AutoreRepository autoreRepository;
     @GetMapping("/autori")
-    public List<Autore> getAll() {
-        return autoreService.cercaTuttiGliAutori();
-    }
+    public Page<Autore> getAll(Pageable pageable){
 
+        return autoreService.cercaTuttiGliAutori(pageable);
+    }
     @GetMapping("/autori/{id}")
-    public ResponseEntity<Autore> getAutoreById(@PathVariable int id) {
-        try {
-            Autore autore = autoreService.cercaAutorePerId(id);
-            return new ResponseEntity<Autore>(autore, HttpStatus.OK);
-        } catch (NoSuchElementException e) {
-            return new ResponseEntity<Autore>(HttpStatus.NOT_FOUND);
-        }
-    }
+    public Autore getAutoreById(@PathVariable int id){
+        return autoreService.cercaAutorePerId(id);
 
+    }
     @PostMapping("/autori")
-    public Autore saveAutore(@RequestBody Autore autore) {
-        return autoreService.salvaAutore(autore);
+    public Autore saveAutore(@RequestBody @Validated AutoreRequest autoreRequest, BindingResult bindingResult){
+        return autoreService.salvaAutore(autoreRequest);
     }
     @PutMapping("/autori/{id}")
-    public ResponseEntity<Autore> updateAutore(@PathVariable int id, @RequestBody Autore autore) {
-        try {
-            Autore a = autoreService.aggiornaAutore(id, autore);
-            return new ResponseEntity<Autore>(a, HttpStatus.OK);
-        } catch (NoSuchElementException e) {
-            return new ResponseEntity<Autore>(HttpStatus.NOT_FOUND);
-        }
+    public Autore updateAutore(@PathVariable int id, @RequestBody AutoreRequest autoreRequest){
+        return autoreService.aggiornaAutore(id, autoreRequest);
     }
+
     @DeleteMapping("/autori/{id}")
-    public ResponseEntity<String> deleteAutore(@PathVariable int id){
-        try{
-            autoreService.cancellaAutore(id);
-            return new ResponseEntity<String>("Autore con id=" + id +" cancellato", HttpStatus.OK);
+    public void deleteAutore(@PathVariable int id){
+        autoreService.cancellaAutore(id);
+    }
+
+    @PatchMapping("/autori/{id}/upload")
+    public ResponseEntity<CustomResponse> uploadAvatar(@PathVariable int id, @RequestParam("upload") MultipartFile file){
+        try {
+            Autore autore = autoreService.uploadAvatar(id, (String)cloudinary.uploader().upload(file.getBytes(), new HashMap()).get("url"));
+            return CustomResponse.success(HttpStatus.OK.toString(), autore, HttpStatus.OK);
         }
-        catch (NoSuchElementException e){
-            return new ResponseEntity<String>(HttpStatus.NOT_FOUND);
+        catch (IOException e){
+            return CustomResponse.error(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
 }

@@ -1,38 +1,53 @@
 package it.epicode.w6d2esercizio.service;
 
+import it.epicode.w6d2esercizio.exception.NotFoundException;
 import it.epicode.w6d2esercizio.model.Autore;
+import it.epicode.w6d2esercizio.model.AutoreRequest;
+import it.epicode.w6d2esercizio.repository.AutoreRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
 
 @Service
 public class AutoreService {
-    private List<Autore> autori = new ArrayList<>();
+    @Autowired
+    private AutoreRepository autoreRepository;
 
-    public List<Autore> cercaTuttiGliAutori(){
-        return this.autori;
+    public Page<Autore> cercaTuttiGliAutori(Pageable pageable){
+        return autoreRepository.findAll(pageable);
     }
+
     public Autore cercaAutorePerId(int id){
-        return autori.stream().filter(autore -> autore.getId()==id)
-                .findAny().orElseThrow(()->new NoSuchElementException("Autore non trovato."));
+        return autoreRepository.findById(id).
+                orElseThrow(()->new NotFoundException("Autore con id="+ id + " non trovato"));
     }
-    public Autore salvaAutore(Autore autore){
-        autori.add(autore);
-        return autore;
-    }
-    public Autore aggiornaAutore(int id, Autore autore) throws NoSuchElementException {
-        Autore a = cercaAutorePerId(id);
-        a.setNome(autore.getNome());
-        a.setCognome(autore.getCognome());
-        a.setEmail(autore.getEmail());
-        a.setDataDiNascita(autore.getDataDiNascita());
 
-        return a;
+    public Autore salvaAutore(AutoreRequest autoreRequest){
+        Autore autore = new Autore(autoreRequest.getNome(), autoreRequest.getCognome(), autoreRequest.getEmail(), autoreRequest.getDataNascita());
+        return autoreRepository.save(autore);
     }
-    public void cancellaAutore(int id) throws NoSuchElementException{
+
+    public Autore aggiornaAutore(int id, AutoreRequest autoreRequest) throws NotFoundException{
         Autore a = cercaAutorePerId(id);
-        autori.remove(a);
+
+        a.setNome(autoreRequest.getNome());
+        a.setCognome(autoreRequest.getCognome());
+        a.setEmail(autoreRequest.getEmail());
+        a.setDataNascita(autoreRequest.getDataNascita());
+
+        return autoreRepository.save(a);
+    }
+
+    public void cancellaAutore(int id) throws NotFoundException{
+        Autore a = cercaAutorePerId(id);
+
+        autoreRepository.delete(a);
+    }
+    public Autore uploadAvatar(int id, String url) throws NotFoundException {
+        Autore autore = cercaAutorePerId(id);
+
+        autore.setAvatar(url);
+        return autoreRepository.save(autore);
     }
 }
